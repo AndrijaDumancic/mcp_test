@@ -39,15 +39,32 @@ async def lifespan(app: FastAPI):
         yield
         logger.info("Shutting down MCP servers...")
 
-app = FastAPI(lifespan=lifespan, dependencies=[Depends(verify_token)])
+app = FastAPI(lifespan=lifespan)
 
-@app.get("/health", dependencies=[])
+@app.get("/health")
 async def health_check():
     logger.debug("Health check requested")
     return {"status": "healthy", "service": "demo-mcp-servers"}
 
-app.mount("/echo", echo_mcp.streamable_http_app())
-app.mount("/math", math_mcp.streamable_http_app())
+# Mount MCP servers with auth middleware
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        await verify_token(HTTPAuthorizationCredentials(
+            scheme="Bearer",
+            credentials=request.headers.get("Authorization", "").replace("Bearer ", "")
+        ))
+        return await call_next(request)
+
+echo_app = echo_mcp.streamable_http_app()
+echo_app.add_middleware(AuthMiddleware)
+
+math_app = math_mcp.streamable_http_app()
+math_app.add_middleware(AuthMiddleware)
+
+app.mount("/echo", echo_app)
+app.mount("/math", math_app)
 
 
 

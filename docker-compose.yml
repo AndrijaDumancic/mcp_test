@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  mcp-servers:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: demo-mcp-servers
+    ports:
+      - "10000:10000"
+    environment:
+      - PORT=10000
+      - AUTH_TOKEN=${AUTH_TOKEN:-my-super-secret-token}
+    restart: unless-stopped
+

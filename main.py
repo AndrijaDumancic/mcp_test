@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 security = HTTPBearer()
 
 async def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)):
-    expected_token = os.environ.get("AUTH_TOKEN", "my-super-secret-token")
+    expected_token = "my-super-secret-token"
     
     if credentials.credentials != expected_token:
         logger.warning("Authentication failed: Invalid token provided")
@@ -39,32 +39,15 @@ async def lifespan(app: FastAPI):
         yield
         logger.info("Shutting down MCP servers...")
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, dependencies=[Depends(verify_token)])
 
 @app.get("/health")
 async def health_check():
     logger.debug("Health check requested")
     return {"status": "healthy", "service": "demo-mcp-servers"}
 
-# Mount MCP servers with auth middleware
-from starlette.middleware.base import BaseHTTPMiddleware
-
-class AuthMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request, call_next):
-        await verify_token(HTTPAuthorizationCredentials(
-            scheme="Bearer",
-            credentials=request.headers.get("Authorization", "").replace("Bearer ", "")
-        ))
-        return await call_next(request)
-
-echo_app = echo_mcp.streamable_http_app()
-echo_app.add_middleware(AuthMiddleware)
-
-math_app = math_mcp.streamable_http_app()
-math_app.add_middleware(AuthMiddleware)
-
-app.mount("/echo", echo_app)
-app.mount("/math", math_app)
+app.mount("/echo", echo_mcp.streamable_http_app())
+app.mount("/math", math_mcp.streamable_http_app())
 
 
 
@@ -73,8 +56,8 @@ PORT = int(os.environ.get("PORT", 10000))
 if __name__ == "__main__":
     import uvicorn
     logger.info(f"Starting FastAPI server on 0.0.0.0:{PORT}")
-    logger.info("Available endpoints:")
-    logger.info("  - GET  /health (no auth)")
-    logger.info("  - *    /echo/* (with auth)")
-    logger.info("  - *    /math/* (with auth)")
+    logger.info("Available endpoints (all require auth):")
+    logger.info("  - GET  /health")
+    logger.info("  - *    /echo/*")
+    logger.info("  - *    /math/*")
     uvicorn.run(app, host="0.0.0.0", port=PORT)

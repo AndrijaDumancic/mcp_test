@@ -26,8 +26,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan, dependencies=[Depends(verify_token)])
 
+@app.get("/health", dependencies=[])
+async def health_check():
+    return {"status": "healthy", "service": "demo-mcp-servers"}
+
 app.mount("/echo", echo_mcp.streamable_http_app())
 app.mount("/math", math_mcp.streamable_http_app())
+
+
 
 PORT = int(os.environ.get("PORT", 10000))
 

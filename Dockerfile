@@ -1,25 +1,19 @@
-FROM python:3.14-slim
+FROM python:3.13-slim-bookworm
 
 WORKDIR /app
 
-# Install uv
 RUN pip install --no-cache-dir uv
 
-# Copy dependency files
 COPY pyproject.toml uv.lock* ./
 
-# Install dependencies using uv sync
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev || uv sync --no-dev
 
-# Copy application code
 COPY . .
 
-# Expose the port
 EXPOSE 10000
 
-# Environment variables
 ENV PORT=10000
+ENV HOST=0.0.0.0
 ENV PYTHONUNBUFFERED=1
 
-# ⭐ KLJUČNA IZMJENA: Koristi uv run umjesto direktnog python
-CMD ["uv", "run", "python", "main.py"]
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "10000"]
